@@ -1,0 +1,129 @@
+package entity
+
+/**
+ * Git Entity
+ * 
+ * Cung cấp các thao tác để tương tác với Git repository
+ * Sử dụng lệnh git thông qua shell
+ * 
+ * Cách sử dụng:
+ * def git = new entity.Git([
+ *     repoUrl: 'https://github.com/user/repo.git',
+ *     branch: 'main'
+ * ])
+ * 
+ * git.fetch()
+ * git.pull()
+ */
+class Git {
+    
+    private String repoUrl
+    private String branch
+    private String credentialsId
+    private String workspacePath
+    
+    /**
+     * Constructor
+     * @param config Map cấu hình chứa:
+     *   - repoUrl: URL của repository (bắt buộc)
+     *   - branch: Tên branch (mặc định: main)
+     *   - credentialsId: Jenkins credential ID cho git (tùy chọn)
+     *   - workspacePath: Đường dẫn thư mục làm việc (tùy chọn)
+     */
+    Git(Map config) {
+        this.repoUrl = config.repoUrl
+        this.branch = config.branch ?: 'main'
+        this.credentialsId = config.credentialsId
+        this.workspacePath = config.workspacePath ?: '.'
+    }
+    
+    // ==================== Thao tác Clone ====================
+    
+    /**
+     * Clone repository về thư mục làm việc
+     * @param targetPath Thư mục đích (tùy chọn, mặc định là workspacePath)
+     * @return Kết quả clone
+     */
+    def clone(String targetPath = null) {
+        def path = targetPath ?: workspacePath
+        return sh(script: "git clone ${repoUrl} ${path}", returnStdout: true).trim()
+    }
+    
+    /**
+     * Clone repository với branch cụ thể
+     * @param targetBranch Tên branch cần clone
+     * @param targetPath Thư mục đích (tùy chọn)
+     * @return Kết quả clone
+     */
+    def cloneBranch(String targetBranch, String targetPath = null) {
+        def path = targetPath ?: workspacePath
+        return sh(script: "git clone -b ${targetBranch} ${repoUrl} ${path}", returnStdout: true).trim()
+    }
+    
+    // ==================== Thao tác lấy code ====================
+    
+    /**
+     * Lấy code về (clone nếu chưa có, pull nếu đã có)
+     * @return Kết quả thao tác
+     */
+    def getCode() {
+        def repoFolder = new File(workspacePath)
+        
+        if (repoFolder.exists() && new File(workspacePath, '.git').exists()) {
+            // Đã clone rồi → pull code mới nhất
+            echo "Repository đã tồn tại, thực hiện pull..."
+            return pull()
+        } else {
+            // Chưa clone → clone về
+            echo "Repository chưa tồn tại, thực hiện clone..."
+            return clone()
+        }
+    }
+    
+    /**
+     * Lấy code với branch cụ thể
+     * @param targetBranch Tên branch cần lấy
+     * @return Kết quả thao tác
+     */
+    def getCode(String targetBranch) {
+        def repoFolder = new File(workspacePath)
+        
+        if (repoFolder.exists() && new File(workspacePath, '.git').exists()) {
+            // Đã clone rồi → checkout và pull
+            echo "Repository đã tồn tại, chuyển sang branch ${targetBranch} và pull..."
+            sh(script: "cd ${workspacePath} && git checkout ${targetBranch}")
+            return pullFrom(targetBranch)
+        } else {
+            // Chưa clone → clone với branch cụ thể
+            echo "Repository chưa tồn tại, clone branch ${targetBranch}..."
+            return cloneBranch(targetBranch)
+        }
+    }
+    
+    // ==================== Thao tác Fetch/Pull ====================
+    
+    /**
+     * Fetch từ remote
+     * @return Kết quả fetch
+     */
+    def fetch() {
+        return sh(script: "cd ${workspacePath} && git fetch --all", returnStdout: true).trim()
+    }
+    
+    /**
+     * Pull từ remote
+     * @return Kết quả pull
+     */
+    def pull() {
+        return sh(script: "cd ${workspacePath} && git pull origin ${branch}", returnStdout: true).trim()
+    }
+    
+    /**
+     * Pull từ branch cụ thể
+     * @param remoteBranch Tên remote branch
+     * @return Kết quả pull
+     */
+    def pullFrom(String remoteBranch) {
+        return sh(script: "cd ${workspacePath} && git pull origin ${remoteBranch}", returnStdout: true).trim()
+    }
+}
