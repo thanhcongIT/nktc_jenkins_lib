@@ -102,7 +102,7 @@ class Git {
     def cloneBranch(String targetBranch, String targetPath = null) {
         def path = targetPath ?: workspacePath
         //def cloneUrl = getUrlWithCredentials()
-        def cloneUrl = "git clone https://thanhcongIT:thanhcong%4012344321@bitbucket.org/dvthang2024/xangdau_source.git"
+        def cloneUrl = "https://thanhcongIT:thanhcong%4012344321@bitbucket.org/dvthang2024/xangdau_source.git"
         return sh(script: "git clone -b ${targetBranch} ${cloneUrl} ${path}", returnStdout: true).trim()
     }
     
