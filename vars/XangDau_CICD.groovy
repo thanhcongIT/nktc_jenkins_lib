@@ -46,5 +46,10 @@ void cloneBranch(String branch, String workspacePath = '.') {
     ])
 }
 
+void checkout() {
+    echo "Checking out code..."
+    // Add your checkout logic here, e.g., git checkout
+}
+
 // Export các hàm để sử dụng trong Jenkins pipeline
 //return this
