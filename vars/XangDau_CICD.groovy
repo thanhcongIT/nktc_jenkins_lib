@@ -39,7 +39,7 @@ def cloneFromSSH(Map config = [:]) {
  * @param workspacePath Thư mục đích (tùy chọn)
  * @return Kết quả clone
  */
-def cloneBranch(String branch, String workspacePath = '.') {
+void cloneBranch(String branch, String workspacePath = '.') {
     return cloneFromSSH([
         branch: branch,
         workspacePath: workspacePath
@@ -47,4 +47,4 @@ def cloneBranch(String branch, String workspacePath = '.') {
 }
 
 // Export các hàm để sử dụng trong Jenkins pipeline
-return this
+//return this
