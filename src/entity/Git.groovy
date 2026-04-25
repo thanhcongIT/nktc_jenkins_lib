@@ -71,11 +71,11 @@ class Git {
         
         if (repoFolder.exists() && new File(workspacePath, '.git').exists()) {
             // Đã clone rồi → pull code mới nhất
-            echo "Repository đã tồn tại, thực hiện pull..."
+            println "Repository đã tồn tại, thực hiện pull..."
             return pull()
         } else {
             // Chưa clone → clone về
-            echo "Repository chưa tồn tại, thực hiện clone..."
+            println "Repository chưa tồn tại, thực hiện clone..."
             return clone()
         }
     }
@@ -90,12 +90,12 @@ class Git {
         
         if (repoFolder.exists() && new File(workspacePath, '.git').exists()) {
             // Đã clone rồi → checkout và pull
-            echo "Repository đã tồn tại, chuyển sang branch ${targetBranch} và pull..."
+            println "Repository đã tồn tại, chuyển sang branch ${targetBranch} và pull..."
             sh(script: "cd ${workspacePath} && git checkout ${targetBranch}")
             return pullFrom(targetBranch)
         } else {
             // Chưa clone → clone với branch cụ thể
-            echo "Repository chưa tồn tại, clone branch ${targetBranch}..."
+            println "Repository chưa tồn tại, clone branch ${targetBranch}..."
             return cloneBranch(targetBranch)
         }
     }
