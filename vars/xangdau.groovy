@@ -19,7 +19,8 @@ def cloneFromSSH(Map config = [:]) {
     def defaultConfig = [
         repoUrl: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
         branch: 'main',
-        workspacePath: '.'
+        workspacePath: '.',
+        script: this
     ]
     
     // Merge config với default

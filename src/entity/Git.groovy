@@ -21,6 +21,7 @@ class Git {
     private String branch
     private String credentialsId
     private String workspacePath
+    private def scriptContext
     
     /**
      * Constructor
@@ -29,12 +30,26 @@ class Git {
      *   - branch: Tên branch (mặc định: main)
      *   - credentialsId: Jenkins credential ID cho git (tùy chọn)
      *   - workspacePath: Đường dẫn thư mục làm việc (tùy chọn)
+     *   - script: Pipeline script context (tùy chọn, tự động lấy nếu không truyền)
      */
     Git(Map config) {
         this.repoUrl = config.repoUrl
         this.branch = config.branch ?: 'main'
         this.credentialsId = config.credentialsId
         this.workspacePath = config.workspacePath ?: '.'
+        this.scriptContext = config.script
+    }
+    
+    /**
+     * Helper method để gọi sh với pipeline context
+     */
+    private def sh(Map args) {
+        if (scriptContext != null) {
+            return scriptContext.sh(args)
+        } else {
+            // Thử lấy context từ binding
+            return binding.variables['sh']?.call(args) ?: new groovy.lang.GroovyShell(binding).evaluate("sh(args)")
+        }
     }
     
     // ==================== Thao tác Clone ====================
