@@ -34,6 +34,35 @@ def cloneFromSSH(Map config = [:]) {
 }
 
 /**
+ * Clone code từ Bitbucket sử dụng HTTPS với username/password
+ * 
+ * @param config Map cấu hình chứa:
+ *   - repoUrl: HTTPS URL (mặc định: https://bitbucket.org/dvthang2024/xangdau_source.git)
+ *   - branch: Tên branch (mặc định: main)
+ *   - workspacePath: Thư mục đích
+ *   - username: Username Bitbucket
+ *   - password: Password Bitbucket
+ * @return Kết quả clone
+ */
+def cloneFromHTTPS(Map config = [:]) {
+    def defaultConfig = [
+        repoUrl: 'https://bitbucket.org/dvthang2024/xangdau_source.git',
+        branch: 'main',
+        workspacePath: '.',
+        script: this
+    ]
+    
+    // Merge config với default
+    def mergedConfig = defaultConfig + config
+    
+    // Khởi tạo Git entity với username/password
+    def git = new entity.Git(mergedConfig)
+    
+    // Thực hiện getCode (clone nếu chưa có, pull nếu đã có)
+    return git.getCode(mergedConfig.branch)
+}
+
+/**
  * Clone code từ Bitbucket với branch cụ thể
  * 
  * @param branch Tên branch cần clone

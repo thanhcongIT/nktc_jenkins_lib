@@ -22,6 +22,8 @@ class Git {
     private String credentialsId
     private String workspacePath
     private def scriptContext
+    private String username
+    private String password
     
     /**
      * Constructor
@@ -31,6 +33,8 @@ class Git {
      *   - credentialsId: Jenkins credential ID cho git (tùy chọn)
      *   - workspacePath: Đường dẫn thư mục làm việc (tùy chọn)
      *   - script: Pipeline script context (tùy chọn, tự động lấy nếu không truyền)
+     *   - username: Username cho HTTPS authentication (tùy chọn)
+     *   - password: Password cho HTTPS authentication (tùy chọn)
      */
     Git(Map config) {
         this.repoUrl = config.repoUrl
@@ -38,6 +42,30 @@ class Git {
         this.credentialsId = config.credentialsId
         this.workspacePath = config.workspacePath ?: '.'
         this.scriptContext = config.script
+        this.username = config.username
+        this.password = config.password
+    }
+    
+    /**
+     * Lấy URL với credentials cho HTTPS
+     */
+    private String getUrlWithCredentials() {
+        if (username && password) {
+            // Chuyển SSH URL sang HTTPS URL nếu cần
+            def httpsUrl = repoUrl
+            if (repoUrl.startsWith('git@')) {
+                // git@bitbucket.org:dvthang2024/xangdau_source.git
+                // → https://dvthang2024@bitbucket.org/dvthang2024/xangdau_source.git
+                def parsed = repoUrl.replace('git@', '').split(':')
+                httpsUrl = "https://${username}:${password}@${parsed[0]}/${parsed[1]}"
+            } else if (repoUrl.startsWith('https://')) {
+                // Thêm credentials vào URL
+                def urlParts = repoUrl.replace('https://', '').split('/', 2)
+                httpsUrl = "https://${username}:${password}@${urlParts[0]}/${urlParts[1]}"
+            }
+            return httpsUrl
+        }
+        return repoUrl
     }
     
     /**
@@ -61,7 +89,8 @@ class Git {
      */
     def clone(String targetPath = null) {
         def path = targetPath ?: workspacePath
-        return sh(script: "git clone ${repoUrl} ${path}", returnStdout: true).trim()
+        def cloneUrl = getUrlWithCredentials()
+        return sh(script: "git clone ${cloneUrl} ${path}", returnStdout: true).trim()
     }
     
     /**
@@ -72,7 +101,9 @@ class Git {
      */
     def cloneBranch(String targetBranch, String targetPath = null) {
         def path = targetPath ?: workspacePath
-        return sh(script: "git clone -b ${targetBranch} ${repoUrl} ${path}", returnStdout: true).trim()
+        //def cloneUrl = getUrlWithCredentials()
+        def cloneUrl = "git clone https://thanhcongIT:thanhcong%4012344321@bitbucket.org/dvthang2024/xangdau_source.git"
+        return sh(script: "git clone -b ${targetBranch} ${cloneUrl} ${path}", returnStdout: true).trim()
     }
     
     // ==================== Thao tác lấy code ====================
