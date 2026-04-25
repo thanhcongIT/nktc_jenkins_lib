@@ -41,17 +41,17 @@ def cloneFromSSH(Map config = [:]) {
  * @return Kết quả clone
  */
 def cloneBranch(String branch, String workspacePath = '.') {
-    echo "Clone branch: ${branch}"
-    
-    stage('Tên Stage') {
+    node {
+        echo "Clone branch: ${branch}"
+        
         def result = cloneFromSSH([
             branch: branch,
             workspacePath: workspacePath
         ])
+        
+        echo "Clone completed: ${branch}"
+        return result
     }
-    
-    
-    echo "Clone completed: ${branch}"
 }
 
 void checkout() {
