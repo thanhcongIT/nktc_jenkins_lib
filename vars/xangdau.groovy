@@ -64,6 +64,7 @@ def cloneFromHTTPS(Map config = [:]) {
 
 /**
  * Clone code từ Bitbucket với branch cụ thể
+ * Sử dụng Jenkins credentials có tên "sourceAccount"
  * 
  * @param branch Tên branch cần clone
  * @param workspacePath Thư mục đích (tùy chọn)
@@ -71,12 +72,24 @@ def cloneFromHTTPS(Map config = [:]) {
  */
 def cloneBranch(String branch, String workspacePath = '.') {
     node {
-        echo "Clone branch: ${branch}"
+        echo "Clone branch: ${branch} with credentials"
         
-        def result = cloneFromSSH([
-            branch: branch,
-            workspacePath: workspacePath
-        ])
+        def result = withCredentials([
+            usernamePassword(
+                credentialsId: 'sourceAccount',
+                usernameVariable: 'GIT_USERNAME',
+                passwordVariable: 'GIT_PASSWORD'
+            )
+        ]) {
+            // Chuyển SSH URL sang HTTPS URL
+            def sshUrl = 'git@bitbucket.org:dvthang2024/xangdau_source.git'
+            def httpsUrl = sshUrl.replace('git@', '').replace(':', '/')
+            def authUrl = "https://${env.GIT_USERNAME}:${env.GIT_PASSWORD}@${httpsUrl}"
+            
+            echo "Cloning from: https://${env.GIT_USERNAME}@bitbucket.org/..."
+            
+            sh(script: "git clone -b ${branch} ${authUrl} ${workspacePath}", returnStdout: true).trim()
+        }
         
         echo "Clone completed: ${branch}"
         return result

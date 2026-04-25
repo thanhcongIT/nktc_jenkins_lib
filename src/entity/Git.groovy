@@ -47,6 +47,42 @@ class Git {
     }
     
     /**
+     * Clone với Jenkins credentials
+     * @param targetBranch Tên branch cần clone
+     * @param targetPath Thư mục đích (tùy chọn)
+     * @return Kết quả clone
+     */
+    def cloneWithCredentials(String targetBranch, String targetPath = null) {
+        def path = targetPath ?: workspacePath
+        def cloneUrl = getHttpsUrl()
+        
+        // Sử dụng withCredentials để inject credentials
+        return scriptContext.withCredentials([
+            scriptContext.usernamePassword(
+                credentialsId: credentialsId,
+                usernameVariable: 'GIT_USERNAME',
+                passwordVariable: 'GIT_PASSWORD'
+            )
+        ]) {
+            def authUrl = cloneUrl.replace('https://', "https://\${env.GIT_USERNAME}:\${env.GIT_PASSWORD}@")
+            return scriptContext.sh(script: "git clone -b ${targetBranch} ${authUrl} ${path}", returnStdout: true).trim()
+        }
+    }
+    
+    /**
+     * Lấy HTTPS URL từ SSH URL
+     */
+    private String getHttpsUrl() {
+        if (repoUrl.startsWith('git@')) {
+            // git@bitbucket.org:dvthang2024/xangdau_source.git
+            // → https://bitbucket.org/dvthang2024/xangdau_source.git
+            def parsed = repoUrl.replace('git@', '').split(':')
+            return "https://${parsed[0]}/${parsed[1]}"
+        }
+        return repoUrl
+    }
+    
+    /**
      * Lấy URL với credentials cho HTTPS
      */
     private String getUrlWithCredentials() {
