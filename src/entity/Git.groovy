@@ -1,10 +1,22 @@
 package entity
 
+import hudson.plugins.git.GitSCM
+import hudson.plugins.git.BranchSpec
+import hudson.plugins.git.UserRemoteConfig
+import hudson.plugins.git.extensions.GitExtension
+import hudson.plugins.git.extensions.impl.CleanBeforeCheckout
+import hudson.plugins.git.extensions.impl.DepthOption
+import hudson.plugins.git.extensions.impl.PruneStaleBranch
+import hudson.plugins.git.extensions.impl.SparseCheckoutPaths
+import hudson.plugins.git.extensions.impl.SubmoduleOption
+import hudson.util.DescribableList
+import org.jenkinsci.plugins.pipeline.utility.steps.scm.GitStep
+
 /**
- * Git Entity
+ * Git Entity sử dụng Jenkins Git Plugin (GitSCM)
  * 
  * Cung cấp các thao tác để tương tác với Git repository
- * Sử dụng lệnh git thông qua shell
+ * Sử dụng GitSCM class từ Jenkins Git Plugin
  * 
  * Cách sử dụng:
  * def git = new entity.Git([
@@ -12,8 +24,8 @@ package entity
  *     branch: 'main'
  * ])
  * 
- * git.fetch()
- * git.pull()
+ * git.checkout()
+ * git.checkout('feature-branch')
  */
 class Git {
     
@@ -24,6 +36,13 @@ class Git {
     private def scriptContext
     private String username
     private String password
+    private String remoteName
+    private Integer depth
+    private Boolean shallow
+    private Boolean prune
+    private Boolean clean
+    private List<String> sparseCheckoutPaths
+    private List<String> submodules
     
     /**
      * Constructor
@@ -35,6 +54,13 @@ class Git {
      *   - script: Pipeline script context (tùy chọn, tự động lấy nếu không truyền)
      *   - username: Username cho HTTPS authentication (tùy chọn)
      *   - password: Password cho HTTPS authentication (tùy chọn)
+     *   - remoteName: Tên remote (mặc định: origin)
+     *   - depth: Shallow clone depth (tùy chọn)
+     *   - shallow: Shallow clone (mặc định: false)
+     *   - prune: Prune stale branches (mặc định: false)
+     *   - clean: Clean before checkout (mặc định: false)
+     *   - sparseCheckoutPaths: Danh sách đường dẫn sparse checkout (tùy chọn)
+     *   - submodules: Danh sách submodule paths (tùy chọn)
      */
     Git(Map config) {
         this.repoUrl = config.repoUrl
@@ -44,122 +70,207 @@ class Git {
         this.scriptContext = config.script
         this.username = config.username
         this.password = config.password
+        this.remoteName = config.remoteName ?: 'origin'
+        this.depth = config.depth
+        this.shallow = config.shallow ?: false
+        this.prune = config.prune ?: false
+        this.clean = config.clean ?: false
+        this.sparseCheckoutPaths = config.sparseCheckoutPaths ?: []
+        this.submodules = config.submodules ?: []
     }
     
     /**
-     * Clone với Jenkins credentials
-     * @param targetBranch Tên branch cần clone
-     * @param targetPath Thư mục đích (tùy chọn)
-     * @return Kết quả clone
+     * Lấy script context (ưu tiên config truyền vào, không tự động lấy)
      */
-    def cloneWithCredentials(String targetBranch, String targetPath = null) {
-        def path = targetPath ?: workspacePath
-        def cloneUrl = getHttpsUrl()
+    private def getScript() {
+        return scriptContext
+    }
+    
+    /**
+     * Tạo UserRemoteConfig từ repoUrl và credentials
+     */
+    private UserRemoteConfig createUserRemoteConfig() {
+        def url = repoUrl
+        def credId = credentialsId
         
-        // Sử dụng withCredentials để inject credentials
-        return scriptContext.withCredentials([
-            scriptContext.usernamePassword(
-                credentialsId: credentialsId,
-                usernameVariable: 'GIT_USERNAME',
-                passwordVariable: 'GIT_PASSWORD'
-            )
-        ]) {
-            def authUrl = cloneUrl.replace('https://', "https://\${env.GIT_USERNAME}:\${env.GIT_PASSWORD}@")
-            return scriptContext.sh(script: "git clone -b ${targetBranch} ${authUrl} ${path}", returnStdout: true).trim()
-        }
-    }
-    
-    /**
-     * Lấy HTTPS URL từ SSH URL
-     */
-    private String getHttpsUrl() {
-        if (repoUrl.startsWith('git@')) {
-            // git@bitbucket.org:dvthang2024/xangdau_source.git
-            // → https://bitbucket.org/dvthang2024/xangdau_source.git
-            def parsed = repoUrl.replace('git@', '').split(':')
-            return "https://${parsed[0]}/${parsed[1]}"
-        }
-        return repoUrl
-    }
-    
-    /**
-     * Lấy URL với credentials cho HTTPS
-     */
-    private String getUrlWithCredentials() {
+        // Nếu có username/password, sử dụng để tạo URL với credentials
         if (username && password) {
-            // Chuyển SSH URL sang HTTPS URL nếu cần
-            def httpsUrl = repoUrl
-            if (repoUrl.startsWith('git@')) {
-                // git@bitbucket.org:dvthang2024/xangdau_source.git
-                // → https://dvthang2024@bitbucket.org/dvthang2024/xangdau_source.git
-                def parsed = repoUrl.replace('git@', '').split(':')
-                httpsUrl = "https://${username}:${password}@${parsed[0]}/${parsed[1]}"
-            } else if (repoUrl.startsWith('https://')) {
-                // Thêm credentials vào URL
-                def urlParts = repoUrl.replace('https://', '').split('/', 2)
-                httpsUrl = "https://${username}:${password}@${urlParts[0]}/${urlParts[1]}"
-            }
-            return httpsUrl
+            url = createUrlWithCredentials(repoUrl, username, password)
+            credId = null // Không cần credentialsId khi đã có URL với credentials
         }
-        return repoUrl
+        
+        return new UserRemoteConfig(url, remoteName, null, credId)
     }
     
     /**
-     * Helper method để gọi sh với pipeline context
+     * Tạo URL với credentials
      */
-    private def sh(Map args) {
-        if (scriptContext != null) {
-            return scriptContext.sh(args)
-        } else {
-            // Thử lấy context từ binding
-            return binding.variables['sh']?.call(args) ?: new groovy.lang.GroovyShell(binding).evaluate("sh(args)")
+    private String createUrlWithCredentials(String originalUrl, String user, String pass) {
+        if (originalUrl.startsWith('git@')) {
+            // SSH URL: git@bitbucket.org:owner/repo.git
+            def parsed = originalUrl.replace('git@', '').split(':')
+            return "https://${user}:${pass}@${parsed[0]}/${parsed[1]}"
+        } else if (originalUrl.startsWith('https://')) {
+            def urlParts = originalUrl.replace('https://', '').split('/', 2)
+            return "https://${user}:${pass}@${urlParts[0]}/${urlParts[1]}"
         }
-    }
-    
-    // ==================== Thao tác Clone ====================
-    
-    /**
-     * Clone repository về thư mục làm việc
-     * @param targetPath Thư mục đích (tùy chọn, mặc định là workspacePath)
-     * @return Kết quả clone
-     */
-    def clone(String targetPath = null) {
-        def path = targetPath ?: workspacePath
-        def cloneUrl = getUrlWithCredentials()
-        return sh(script: "git clone ${cloneUrl} ${path}", returnStdout: true).trim()
+        return originalUrl
     }
     
     /**
-     * Clone repository với branch cụ thể
-     * @param targetBranch Tên branch cần clone
-     * @param targetPath Thư mục đích (tùy chọn)
-     * @return Kết quả clone
+     * Tạo BranchSpec cho branch
      */
-    def cloneBranch(String targetBranch, String targetPath = null) {
-        def path = targetPath ?: workspacePath
-        //def cloneUrl = getUrlWithCredentials()
-        def cloneUrl = "https://thanhcongIT:thanhcong%4012344321@bitbucket.org/dvthang2024/xangdau_source.git"
-        return sh(script: "git clone -b ${targetBranch} ${cloneUrl} ${path}", returnStdout: true).trim()
+    private BranchSpec createBranchSpec(String branchName) {
+        return new BranchSpec(branchName)
+    }
+    
+    /**
+     * Tạo GitSCM instance
+     */
+    private GitSCM createGitSCM(String targetBranch) {
+        def remoteConfigs = [createUserRemoteConfig()] as List<UserRemoteConfig>
+        def branchSpec = createBranchSpec(targetBranch ?: branch)
+        
+        def extensions = new DescribableList<GitExtension, GitExtension>()
+        
+        // Thêm các extensions
+        if (clean) {
+            extensions.add(new CleanBeforeCheckout())
+        }
+        if (prune) {
+            extensions.add(new PruneStaleBranch())
+        }
+        if (depth != null || shallow) {
+            def depthVal = depth ?: 1
+            extensions.add(new DepthOption(depthVal, shallow))
+        }
+        if (sparseCheckoutPaths?.size() > 0) {
+            extensions.add(new SparseCheckoutPaths(sparseCheckoutPaths))
+        }
+        if (submodules?.size() > 0) {
+            extensions.add(new SubmoduleOption(
+                false, // disableSubmodules
+                null,  // recursiveSubmodules
+                null,  // trackingSubmodules
+                null,  // reference
+                null,  // parentCredentials
+                submodules as String[]
+            ))
+        }
+        
+        return new GitSCM(
+            remoteConfigs,
+            branchSpec,
+            null, // buildChooser
+            extensions,
+            null, // gitTool
+            null  // cloneOptions
+        )
+    }
+    
+    // ==================== Thao tác Checkout sử dụng GitSCM ====================
+    
+    /**
+     * Checkout sử dụng GitStep (Jenkins Pipeline Utility)
+     * @return Kết quả checkout
+     */
+    def checkout() {
+        return checkout(branch)
+    }
+    
+    /**
+     * Checkout với branch cụ thể sử dụng GitStep
+     * @param targetBranch Tên branch cần checkout
+     * @return Kết quả checkout
+     */
+    def checkout(String targetBranch) {
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations. Please provide 'script' in constructor config.")
+        }
+        
+        // Sử dụng GitStep từ Jenkins Pipeline Utility
+        def gitStep = new GitStep([
+            url: repoUrl,
+            branch: targetBranch,
+            credentialsId: credentialsId,
+            changelog: false,
+            poll: false
+        ])
+        
+        // Thêm các options
+        def config = [
+            url: repoUrl,
+            branch: targetBranch
+        ]
+        
+        if (credentialsId) {
+            config.credentialsId = credentialsId
+        }
+        if (depth != null || shallow) {
+            config.depth = depth ?: 1
+        }
+        if (shallow) {
+            config.shallow = true
+        }
+        
+        return script.git config
+    }
+    
+    /**
+     * Checkout với nhiều tùy chọn nâng cao
+     * @param targetBranch Tên branch cần checkout
+     * @param options Map tùy chọn bổ sung:
+     *   - credentialsId: Credential ID
+     *   - depth: Clone depth
+     *   - shallow: Shallow clone
+     *   - prune: Prune stale branches
+     *   - clean: Clean before checkout
+     *   - sparseCheckoutPaths: Sparse checkout paths
+     *   - submodules: Submodule paths
+     * @return Kết quả checkout
+     */
+    def checkout(String targetBranch, Map options) {
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        def config = [
+            url: options.repoUrl ?: repoUrl,
+            branch: targetBranch
+        ]
+        
+        if (options.credentialsId ?: credentialsId) {
+            config.credentialsId = options.credentialsId ?: credentialsId
+        }
+        if (options.depth ?: depth) {
+            config.depth = options.depth ?: depth
+        }
+        if (options.shallow ?: shallow) {
+            config.shallow = true
+        }
+        if (options.prune ?: prune) {
+            config.prune = true
+        }
+        if (options.clean ?: clean) {
+            config.clean = true
+        }
+        
+        return script.git config
     }
     
     // ==================== Thao tác lấy code ====================
     
     /**
      * Lấy code về (clone nếu chưa có, pull nếu đã có)
+     * Sử dụng GitSCM thông qua git step
      * @return Kết quả thao tác
      */
     def getCode() {
-        def repoFolder = new File(workspacePath)
-        
-        if (repoFolder.exists() && new File(workspacePath, '.git').exists()) {
-            // Đã clone rồi → pull code mới nhất
-            println "Repository đã tồn tại, thực hiện pull..."
-            return pull()
-        } else {
-            // Chưa clone → clone về
-            println "Repository chưa tồn tại, thực hiện clone..."
-            return clone()
-        }
+        return getCode(branch)
     }
     
     /**
@@ -168,28 +279,42 @@ class Git {
      * @return Kết quả thao tác
      */
     def getCode(String targetBranch) {
-        def repoFolder = new File(workspacePath)
+        def script = getScript()
         
-        if (repoFolder.exists() && new File(workspacePath, '.git').exists()) {
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        // Kiểm tra repository đã tồn tại chưa
+        def repoFolder = new File(workspacePath)
+        def gitFolder = new File(workspacePath, '.git')
+        
+        if (repoFolder.exists() && gitFolder.exists()) {
             // Đã clone rồi → checkout và pull
-            println "Repository đã tồn tại, chuyển sang branch ${targetBranch} và pull..."
-            sh(script: "cd ${workspacePath} && git checkout ${targetBranch}")
-            return pullFrom(targetBranch)
+            println "Repository đã tồn tại, chuyển sang branch ${targetBranch}..."
+            script.sh "cd ${workspacePath} && git checkout ${targetBranch}"
+            return pull(targetBranch)
         } else {
-            // Chưa clone → clone với branch cụ thể
-            println "Repository chưa tồn tại, clone branch ${targetBranch}..."
-            return cloneBranch(targetBranch)
+            // Chưa clone → checkout (sẽ tự động clone)
+            println "Repository chưa tồn tại, checkout branch ${targetBranch}..."
+            return checkout(targetBranch)
         }
     }
     
     // ==================== Thao tác Fetch/Pull ====================
     
     /**
-     * Fetch từ remote
+     * Fetch từ remote sử dụng GitSCM
      * @return Kết quả fetch
      */
     def fetch() {
-        return sh(script: "cd ${workspacePath} && git fetch --all", returnStdout: true).trim()
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        return script.sh(script: "cd ${workspacePath} && git fetch --all", returnStdout: true).trim()
     }
     
     /**
@@ -197,7 +322,7 @@ class Git {
      * @return Kết quả pull
      */
     def pull() {
-        return sh(script: "cd ${workspacePath} && git pull origin ${branch}", returnStdout: true).trim()
+        return pull(branch)
     }
     
     /**
@@ -205,7 +330,84 @@ class Git {
      * @param remoteBranch Tên remote branch
      * @return Kết quả pull
      */
-    def pullFrom(String remoteBranch) {
-        return sh(script: "cd ${workspacePath} && git pull origin ${remoteBranch}", returnStdout: true).trim()
+    def pull(String remoteBranch) {
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        return script.sh(script: "cd ${workspacePath} && git pull ${remoteName} ${remoteBranch}", returnStdout: true).trim()
+    }
+    
+    // ==================== Các phương thức bổ sung ====================
+    
+    /**
+     * Lấy thông tin commit hiện tại
+     * @return Commit hash
+     */
+    def getCurrentCommit() {
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        return script.sh(script: "cd ${workspacePath} && git rev-parse HEAD", returnStdout: true).trim()
+    }
+    
+    /**
+     * Lấy thông tin branch hiện tại
+     * @return Tên branch hiện tại
+     */
+    def getCurrentBranch() {
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        return script.sh(script: "cd ${workspacePath} && git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+    }
+    
+    /**
+     * Lấy danh sách các branch
+     * @return Danh sách branch
+     */
+    def getBranches() {
+        def script = getScript()
+        
+        if (script == null) {
+            throw new Exception("Script context is required for GitSCM operations.")
+        }
+        
+        def output = script.sh(script: "cd ${workspacePath} && git branch -a", returnStdout: true).trim()
+        return output.split('\n').collect { it.trim().replaceAll(/^\* /, '') }
+    }
+    
+    /**
+     * Tạo GitSCM object trực tiếp (cho advanced usage)
+     * @param targetBranch Tên branch
+     * @return GitSCM instance
+     */
+    GitSCM createSCM(String targetBranch) {
+        return createGitSCM(targetBranch)
+    }
+    
+    /**
+     * Lấy thông tin repository
+     * @return Map chứa thông tin repo
+     */
+    def getRepoInfo() {
+        return [
+            repoUrl: repoUrl,
+            branch: branch,
+            credentialsId: credentialsId,
+            workspacePath: workspacePath,
+            remoteName: remoteName,
+            shallow: shallow,
+            prune: prune,
+            clean: clean
+        ]
     }
 }
