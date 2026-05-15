@@ -46,7 +46,7 @@ def cloneFromSSH(Map config = [:]) {
  */
 def cloneFromHTTPS(Map config = [:]) {
     def defaultConfig = [
-        repoUrl: 'https://bitbucket.org/dvthang2024/xangdau_source.git',
+        repoUrl: 'https://thanhcongIT@bitbucket.org/dvthang2024/xangdau_source.git',
         branch: 'main',
         workspacePath: '.',
         script: this
