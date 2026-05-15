@@ -109,7 +109,7 @@ def getCode() {
             $class: 'GitSCM',
             userRemoteConfigs: [
                 [
-                    credentialsId: 'sourceAccount',
+                    credentialsId: 'bitbucketAccount',
                     url: "https://bitbucket.org/dvthang2024/xangdau_source.git"
                 ]
             ],
