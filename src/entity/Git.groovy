@@ -259,7 +259,7 @@ class Git {
             config.clean = true
         }
         
-        return script.git config
+        return script.git(config)
     }
     
     // ==================== Thao tác lấy code ====================
