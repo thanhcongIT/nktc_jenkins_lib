@@ -1,22 +1,10 @@
 package entity
 
-import hudson.plugins.git.GitSCM
-import hudson.plugins.git.BranchSpec
-import hudson.plugins.git.UserRemoteConfig
-import hudson.plugins.git.extensions.GitExtension
-import hudson.plugins.git.extensions.impl.CleanBeforeCheckout
-import hudson.plugins.git.extensions.impl.DepthOption
-import hudson.plugins.git.extensions.impl.PruneStaleBranch
-import hudson.plugins.git.extensions.impl.SparseCheckoutPaths
-import hudson.plugins.git.extensions.impl.SubmoduleOption
-import hudson.util.DescribableList
-import org.jenkinsci.plugins.pipeline.utility.steps.scm.GitStep
-
 /**
- * Git Entity sử dụng Jenkins Git Plugin (GitSCM)
+ * Git Entity sử dụng Jenkins Pipeline git step
  * 
  * Cung cấp các thao tác để tương tác với Git repository
- * Sử dụng GitSCM class từ Jenkins Git Plugin
+ * Sử dụng Jenkins pipeline `git` và `checkout` trực tiếp
  * 
  * Cách sử dụng:
  * def git = new entity.Git([
@@ -87,22 +75,6 @@ class Git {
     }
     
     /**
-     * Tạo UserRemoteConfig từ repoUrl và credentials
-     */
-    private UserRemoteConfig createUserRemoteConfig() {
-        def url = repoUrl
-        def credId = credentialsId
-        
-        // Nếu có username/password, sử dụng để tạo URL với credentials
-        if (username && password) {
-            url = createUrlWithCredentials(repoUrl, username, password)
-            credId = null // Không cần credentialsId khi đã có URL với credentials
-        }
-        
-        return new UserRemoteConfig(url, remoteName, null, credId)
-    }
-    
-    /**
      * Tạo URL với credentials
      */
     private String createUrlWithCredentials(String originalUrl, String user, String pass) {
@@ -117,61 +89,11 @@ class Git {
         return originalUrl
     }
     
-    /**
-     * Tạo BranchSpec cho branch
-     */
-    private BranchSpec createBranchSpec(String branchName) {
-        return new BranchSpec(branchName)
-    }
+    
+    // ==================== Thao tác Checkout sử dụng pipeline git ====================
     
     /**
-     * Tạo GitSCM instance
-     */
-    private GitSCM createGitSCM(String targetBranch) {
-        def remoteConfigs = [createUserRemoteConfig()] as List<UserRemoteConfig>
-        def branchSpec = createBranchSpec(targetBranch ?: branch)
-        
-        def extensions = new DescribableList<GitExtension, GitExtension>()
-        
-        // Thêm các extensions
-        if (clean) {
-            extensions.add(new CleanBeforeCheckout())
-        }
-        if (prune) {
-            extensions.add(new PruneStaleBranch())
-        }
-        if (depth != null || shallow) {
-            def depthVal = depth ?: 1
-            extensions.add(new DepthOption(depthVal, shallow))
-        }
-        if (sparseCheckoutPaths?.size() > 0) {
-            extensions.add(new SparseCheckoutPaths(sparseCheckoutPaths))
-        }
-        if (submodules?.size() > 0) {
-            extensions.add(new SubmoduleOption(
-                false, // disableSubmodules
-                null,  // recursiveSubmodules
-                null,  // trackingSubmodules
-                null,  // reference
-                null,  // parentCredentials
-                submodules as String[]
-            ))
-        }
-        
-        return new GitSCM(
-            remoteConfigs,
-            branchSpec,
-            null, // buildChooser
-            extensions,
-            null, // gitTool
-            null  // cloneOptions
-        )
-    }
-    
-    // ==================== Thao tác Checkout sử dụng GitSCM ====================
-    
-    /**
-     * Checkout sử dụng GitStep (Jenkins Pipeline Utility)
+     * Checkout sử dụng Jenkins pipeline git step
      * @return Kết quả checkout
      */
     def checkout() {
@@ -179,7 +101,7 @@ class Git {
     }
     
     /**
-     * Checkout với branch cụ thể sử dụng GitStep
+     * Checkout với branch cụ thể sử dụng Jenkins pipeline git step
      * @param targetBranch Tên branch cần checkout
      * @return Kết quả checkout
      */
@@ -190,16 +112,7 @@ class Git {
             throw new Exception("Script context is required for GitSCM operations. Please provide 'script' in constructor config.")
         }
         
-        // Sử dụng GitStep từ Jenkins Pipeline Utility
-        def gitStep = new GitStep([
-            url: repoUrl,
-            branch: targetBranch,
-            credentialsId: credentialsId,
-            changelog: false,
-            poll: false
-        ])
-        
-        // Thêm các options
+        // Sử dụng trực tiếp Jenkins pipeline git step
         def config = [
             url: repoUrl,
             branch: targetBranch
@@ -266,7 +179,7 @@ class Git {
     
     /**
      * Lấy code về (clone nếu chưa có, pull nếu đã có)
-     * Sử dụng GitSCM thông qua git step
+     * Sử dụng git step
      * @return Kết quả thao tác
      */
     def getCode() {
@@ -304,7 +217,7 @@ class Git {
     // ==================== Thao tác Fetch/Pull ====================
     
     /**
-     * Fetch từ remote sử dụng GitSCM
+     * Fetch từ remote
      * @return Kết quả fetch
      */
     def fetch() {
@@ -383,15 +296,6 @@ class Git {
         
         def output = script.sh(script: "cd ${workspacePath} && git branch -a", returnStdout: true).trim()
         return output.split('\n').collect { it.trim().replaceAll(/^\* /, '') }
-    }
-    
-    /**
-     * Tạo GitSCM object trực tiếp (cho advanced usage)
-     * @param targetBranch Tên branch
-     * @return GitSCM instance
-     */
-    GitSCM createSCM(String targetBranch) {
-        return createGitSCM(targetBranch)
     }
     
     /**
