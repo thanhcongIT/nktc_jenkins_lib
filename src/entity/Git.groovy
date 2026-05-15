@@ -215,7 +215,7 @@ class Git {
             config.shallow = true
         }
         
-        return script.git config
+        return script.git(config)
     }
     
     /**
