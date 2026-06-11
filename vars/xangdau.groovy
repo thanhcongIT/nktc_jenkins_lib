@@ -211,7 +211,7 @@ echo "$SSH_KEY_PASSPHRASE"
 def getCode(Map config = [:]) {
     echo "Getting code..."
     node {
-        dir('~') {
+        dir('.') {
             ensureSshAgent()
             ensureBitbucketWorkKeyLoaded('SSH_KEY')
         }
