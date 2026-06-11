@@ -211,8 +211,11 @@ echo "$SSH_KEY_PASSPHRASE"
 def getCode(Map config = [:]) {
     echo "Getting code..."
     node {
-        ensureSshAgent()
-        ensureBitbucketWorkKeyLoaded('SSH_KEY')
+        dir('~') {
+            ensureSshAgent()
+            ensureBitbucketWorkKeyLoaded('SSH_KEY')
+        }
+        
 
         def git = new entity.Git([
             repoUrl: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
