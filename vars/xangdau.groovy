@@ -103,43 +103,16 @@ void checkout() {
 
 def getCode() {
     echo "Getting code..."
-    // Add your getCode logic here, e.g., git clone or pull
     node {
-        Object scmVars = checkout scm: [
-            $class: 'GitSCM',
-            userRemoteConfigs: [
-                [
-                    credentialsId: 'bitbucketAccount',
-                    url: "https://bitbucket.org/dvthang2024/xangdau_source.git"
-                ]
-            ],
-            extensions: [
-                [
-                    $class: 'CheckoutOption',
-                    timeout: 20,
-                ],
-                [
-                    $class: 'CloneOption',
-                    timeout: 20,
-                    reference: '',
-                    noTags: false,
-                    shallow: true,
-                    depth: 300,
-                ],
-                [
-                    $class: 'SparseCheckoutPaths',
-                    sparseCheckoutPaths: [],
-                ],
-                [$class: 'PruneStaleBranch'] // Run "git remote prune" for each remote, to prune obsolete local branches.
-            ],
-            branches: [
-                [
-                    name: 'main'
-                ]
-            ]
-        ]
-    }
+        def git = new entity.Git([
+            repoUrl: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
+            branch: 'main',
+            workspacePath: '.',
+            script: this
+        ])
 
+        return git.getCode('main')
+    }
 }
 
 
