@@ -136,7 +136,7 @@ private void ensureSshAgent() {
 }
 
 private boolean hasBitbucketWorkKeyLoaded() {
-    def keyPath = "~/.ssh/.ssh/bitbucket_work"
+    def keyPath = "~/.ssh/bitbucket_work"
 
     if (sh(script: "test -f \"${keyPath}\"", returnStatus: true) != 0) {
         throw new Exception("SSH private key not found: ${keyPath}")
@@ -161,7 +161,7 @@ private void ensureBitbucketWorkKeyLoaded() {
         return
     }
 
-    def keyPath = "~/.ssh/.ssh/bitbucket_work"
+    def keyPath = "~/.ssh/bitbucket_work"
     echo "SSH key ~/.ssh/bitbucket_work is not loaded, adding it now"
 
     if (sh(script: "ssh-add \"${keyPath}\"", returnStatus: true) != 0) {
@@ -182,7 +182,7 @@ private void ensureBitbucketWorkKeyLoaded(String passphraseCredentialId) {
         return
     }
 
-    def keyPath = "~/.ssh/.ssh/bitbucket_work"
+    def keyPath = "~/.ssh/bitbucket_work"
     echo "SSH key ~/.ssh/bitbucket_work is not loaded, adding it with Jenkins Credentials"
 
     withCredentials([string(credentialsId: passphraseCredentialId, variable: 'SSH_KEY_PASSPHRASE')]) {
