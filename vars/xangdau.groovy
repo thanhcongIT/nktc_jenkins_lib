@@ -113,109 +113,12 @@ private boolean isSshAgentRunning() {
     }
 }
 
-private void ensureSshAgent() {
-    if (isSshAgentRunning()) {
-        echo "ssh-agent is already running"
-        return
-    }
-
-    echo "ssh-agent is not running, starting it now"
-    def agentOutput = sh(script: 'ssh-agent -s', returnStdout: true).trim()
-
-    def authSockMatch = (agentOutput =~ /SSH_AUTH_SOCK=([^;]+);/)
-    def agentPidMatch = (agentOutput =~ /SSH_AGENT_PID=([0-9]+);/)
-
-    if (authSockMatch.find()) {
-        env.SSH_AUTH_SOCK = authSockMatch.group(1)
-    }
-    if (agentPidMatch.find()) {
-        env.SSH_AGENT_PID = agentPidMatch.group(1)
-    }
-
-    echo "ssh-agent started"
-}
-
-private boolean hasBitbucketWorkKeyLoaded() {
-    def keyPath = "~/.ssh/bitbucket_work"
-
-    if (sh(script: "test -f \"${keyPath}\"", returnStatus: true) != 0) {
-        throw new Exception("SSH private key not found: ${keyPath}")
-    }
-
-    def keyFingerprint = sh(
-        script: "ssh-keygen -lf \"${keyPath}\" -E sha256 | awk '{print \$2}'",
-        returnStdout: true
-    ).trim()
-
-    def loadedFingerprints = sh(
-        script: 'ssh-add -l -E sha256 2>/dev/null | awk "{print $2}"',
-        returnStdout: true
-    ).trim()
-
-    return loadedFingerprints.split(/\r?\n/).any { it == keyFingerprint }
-}
-
-private void ensureBitbucketWorkKeyLoaded() {
-    if (hasBitbucketWorkKeyLoaded()) {
-        echo "SSH key ~/.ssh/bitbucket_work is already loaded in ssh-agent"
-        return
-    }
-
-    def keyPath = "~/.ssh/bitbucket_work"
-    echo "SSH key ~/.ssh/bitbucket_work is not loaded, adding it now"
-
-    if (sh(script: "ssh-add \"${keyPath}\"", returnStatus: true) != 0) {
-        throw new Exception("Failed to add SSH key to ssh-agent: ${keyPath}")
-    }
-
-    echo "SSH key ~/.ssh/bitbucket_work loaded successfully"
-}
-
-private void ensureBitbucketWorkKeyLoaded(String passphraseCredentialId) {
-    if (!passphraseCredentialId) {
-        ensureBitbucketWorkKeyLoaded()
-        return
-    }
-
-    if (hasBitbucketWorkKeyLoaded()) {
-        echo "SSH key ~/.ssh/bitbucket_work is already loaded in ssh-agent"
-        return
-    }
-
-    def keyPath = "~/.ssh/bitbucket_work"
-    echo "SSH key ~/.ssh/bitbucket_work is not loaded, adding it with Jenkins Credentials"
-
-    withCredentials([string(credentialsId: passphraseCredentialId, variable: 'SSH_KEY_PASSPHRASE')]) {
-        def askpassScript = "${pwd(tmp: true)}/ssh-askpass.sh"
-        writeFile(
-            file: askpassScript,
-            text: '''#!/bin/sh
-echo "$SSH_KEY_PASSPHRASE"
-'''
-        )
-        sh(script: "chmod 700 \"${askpassScript}\"")
-
-        def addStatus = sh(
-            script: "DISPLAY=none SSH_ASKPASS=\"${askpassScript}\" SSH_ASKPASS_REQUIRE=force setsid -w ssh-add \"${keyPath}\"",
-            returnStatus: true
-        )
-
-        if (addStatus != 0) {
-            throw new Exception("Failed to add SSH key to ssh-agent using credential: ${passphraseCredentialId}")
-        }
-    }
-
-    echo "SSH key ~/.ssh/bitbucket_work loaded successfully"
-}
-
 def getCode(Map config = [:]) {
     echo "Getting code..."
     node {
-        echo "$HOME"
-        dir($HOME) {
-            ensureSshAgent()
-            ensureBitbucketWorkKeyLoaded('SSH_KEY')
-        }
+        sh(script: "source ~/.ssh/agent.env || true", returnStdout: true).trim()
+
+        sh(script: "git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git")
         
 
         def git = new entity.Git([
