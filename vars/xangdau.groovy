@@ -123,7 +123,7 @@ def getCode(Map config = [:]) {
         // ")
 
         sh '''
-            . ~/.ssh/agent.env
+            . /agent.env
             ssh-add -l
             git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git
         '''
