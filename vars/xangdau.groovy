@@ -118,8 +118,9 @@ def getCode(Map config = [:]) {
     node {
         // sh(script: "source ~/.ssh/agent.env || true", returnStdout: true).trim()
         sh(script: "source ~/.ssh/agent.env")
-
-        sh(script: "git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git")
+        sh(script: ". ~/.ssh/agent.env
+                git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git
+        ")
         
 
         // def git = new entity.Git([
