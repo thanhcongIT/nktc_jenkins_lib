@@ -122,11 +122,15 @@ def getCode(Map config = [:]) {
         //         git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git
         // ")
 
-        sh '''
-            . /var/lib/jenkins/agent.env
-            ssh-add -l
-            git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git
-        '''
+        // sh '''
+        //     . /var/lib/jenkins/agent.env
+        //     ssh-add -l
+        //     git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git
+        // '''
+
+        sshagent(['git-ssh-key']) {
+            sh 'git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git'
+        }
         
 
         // def git = new entity.Git([
