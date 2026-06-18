@@ -131,6 +131,15 @@ def getCode(Map config = [:]) {
         sshagent(['git-ssh-key']) {
             sh 'git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git'
         }
+
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: 'main']],
+            userRemoteConfigs: [[
+                url: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
+                credentialsId: 'git-ssh-key'
+            ]]
+        ])
         
 
         // def git = new entity.Git([
