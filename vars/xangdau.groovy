@@ -116,19 +116,20 @@ private boolean isSshAgentRunning() {
 def getCode(Map config = [:]) {
     echo "Getting code..."
     node {
-        sh(script: "source ~/.ssh/agent.env || true", returnStdout: true).trim()
+        // sh(script: "source ~/.ssh/agent.env || true", returnStdout: true).trim()
+        sh(script: "source ~/.ssh/agent.env")
 
         sh(script: "git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git")
         
 
-        def git = new entity.Git([
-            repoUrl: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
-            branch: 'main',
-            workspacePath: '.',
-            script: this
-        ])
+        // def git = new entity.Git([
+        //     repoUrl: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
+        //     branch: 'main',
+        //     workspacePath: '.',
+        //     script: this
+        // ])
 
-        return git.getCode('main')
+        // return git.getCode('main')
     }
 }
 
