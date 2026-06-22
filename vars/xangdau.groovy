@@ -62,6 +62,10 @@ def buildApp() {
                     case 'frontend':
                         dir('FrontEnd') {
                             sh '''
+                                rm -rf node_modules
+                                rm -f package-lock.json
+                                npm cache clean --force
+                                npm i --force
                                 npx ng build
                             '''
                         }
