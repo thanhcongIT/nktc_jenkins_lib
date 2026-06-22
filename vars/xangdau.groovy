@@ -61,11 +61,10 @@ def buildApp() {
                 switch(app) {
                     case 'frontend':
                         dir('FrontEnd') {
-                            //sh 'npm install'
-                            //sh 'npm run build'
-                            // Các lệnh bên trong thư mục con này
-                            sh 'ls -la'
-                            sh 'pwd'
+                            sh ''''
+                                npm i
+                                ng build
+                            ''''
                         }
                         
                     break
