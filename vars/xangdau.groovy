@@ -33,6 +33,7 @@ def getCode(Map config = [:]) {
 def buildApp() {
     node {
         ArrayList buildList = env.build_list.split(',').collect { it.trim() }
+        String deployPath = '/app/xangdau'
         echo "Building app..."
         echo "branch ${env.branch}"
         echo "build list ${buildList}"
@@ -48,8 +49,35 @@ def buildApp() {
             ])
         }
 
+        stage('stop docker compose') {
+            dir(deployPath) {
+                // sh 'docker compose down'
+            }
+        }
+
         for (String app in buildList) {
             echo "Building app: ${app}"
+            stage("build ${app}") {
+                switch(app) {
+                    case 'frontend':
+                        dir('FrontEnd') {
+                            //sh 'npm install'
+                            //sh 'npm run build'
+                            // Các lệnh bên trong thư mục con này
+                            sh 'ls -la'
+                            sh 'pwd'
+                        }
+                        
+                    break
+                }
+                
+            }
+        }
+
+        stage('start docker compose') {
+            dir(deployPath) {
+                // sh 'docker compose up -d'
+            }
         }
     }
 }
