@@ -32,7 +32,7 @@ def getCode(Map config = [:]) {
 
 def buildApp() {
     node {
-        ArrayList buildList = env.branch.split(',').collect { it.trim() }
+        ArrayList buildList = env.build_list.split(',').collect { it.trim() }
         echo "Building app..."
         echo "branch ${env.branch}"
         echo "build list ${buildList}"
