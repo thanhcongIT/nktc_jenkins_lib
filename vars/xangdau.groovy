@@ -61,10 +61,10 @@ def buildApp() {
                 switch(app) {
                     case 'frontend':
                         dir('FrontEnd') {
-                            sh ''''
+                            sh '''
                                 npm i
                                 ng build
-                            ''''
+                            '''
                         }
                         
                     break
