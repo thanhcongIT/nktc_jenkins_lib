@@ -14,9 +14,9 @@ def getCode(Map config = [:]) {
         //     git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git
         // '''
 
-        sshagent(['git-ssh-key']) {
-            sh 'git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git'
-        }
+        // sshagent(['git-ssh-key']) {
+        //     sh 'git ls-remote git@bitbucket.org:dvthang2024/xangdau_source.git'
+        // }
 
         checkout([
             $class: 'GitSCM',
