@@ -47,6 +47,10 @@ def buildApp() {
                 ]]
             ])
         }
+
+        for (String app in buildList) {
+            echo "Building app: ${app}"
+        }
     }
 }
 
