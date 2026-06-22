@@ -30,6 +30,26 @@ def getCode(Map config = [:]) {
     }
 }
 
+def buildApp() {
+    node {
+        ArrayList buildList = env.branch.split(',').collect { it.trim() }
+        echo "Building app..."
+        echo "branch ${env.branch}"
+        echo "build list ${buildList}"
+        
+        stage('get code') {
+            checkout([
+                $class: 'GitSCM',
+                branches: [[name: 'main']],
+                userRemoteConfigs: [[
+                    url: 'git@bitbucket.org:dvthang2024/xangdau_source.git',
+                    credentialsId: 'git-ssh-key'
+                ]]
+            ])
+        }
+    }
+}
+
 
 // https://github.com/thanhcongIT/nktc_jenkins_lib.git
 // Export các hàm để sử dụng trong Jenkins pipeline
