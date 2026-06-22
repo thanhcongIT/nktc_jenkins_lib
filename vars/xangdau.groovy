@@ -62,8 +62,7 @@ def buildApp() {
                     case 'frontend':
                         dir('FrontEnd') {
                             sh '''
-                                npm i --force
-                                ng build
+                                npx ng build
                             '''
                         }
                         
