@@ -64,7 +64,7 @@ def buildApp() {
                             sh '''
                                 rm -rf node_modules
                                 rm -f package-lock.json
-                                npm i 
+                                npm i --legacy-peer-deps
                                 npx ng build
                             '''
                         }
