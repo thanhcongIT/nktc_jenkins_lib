@@ -51,7 +51,7 @@ def buildApp() {
 
         stage('stop docker compose') {
             dir(deployPath) {
-                // sh 'docker compose down'
+                sh 'docker compose down'
             }
         }
 
@@ -67,10 +67,22 @@ def buildApp() {
                             //     npm i --legacy-peer-deps
                             //     npx ng build
                             // '''
+                            sh'''
+                                ls -la
+                            '''
 
                             echo "Building frontend... không thể build do máy yếu"
+                            sleep(20000)
                         }
                         
+                    break
+                    case 'business_api':
+                        dir('Be') {
+                            sh'''
+                                ls -la
+                            '''
+                            sleep(20000)
+                        }
                     break
                 }
                 
@@ -79,7 +91,7 @@ def buildApp() {
 
         stage('start docker compose') {
             dir(deployPath) {
-                // sh 'docker compose up -d'
+                sh 'docker compose up -d'
             }
         }
     }
