@@ -61,12 +61,14 @@ def buildApp() {
                 switch(app) {
                     case 'frontend':
                         dir('FrontEnd') {
-                            sh '''
-                                rm -rf node_modules
-                                rm -f package-lock.json
-                                npm i --legacy-peer-deps
-                                npx ng build
-                            '''
+                            // sh '''
+                            //     rm -rf node_modules
+                            //     rm -f package-lock.json
+                            //     npm i --legacy-peer-deps
+                            //     npx ng build
+                            // '''
+
+                            echo "Building frontend... không thể build do máy yếu"
                         }
                         
                     break
