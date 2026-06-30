@@ -72,16 +72,15 @@ def buildApp() {
                             '''
 
                             echo "Building frontend... không thể build do máy yếu"
-                            sleep(20000)
                         }
                         
                     break
                     case 'business_api':
                         dir('Be') {
                             sh'''
-                                ls -la
+                                docker rmi -f xangdau.business.api:latest || true
+                                docker build -t xangdau.business.api:latest -f Business_Dockerfile .
                             '''
-                            sleep(20000)
                         }
                     break
                 }
