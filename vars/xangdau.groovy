@@ -83,6 +83,30 @@ def buildApp() {
                             '''
                         }
                     break
+                    case 'auth_api':
+                        dir('Be') {
+                            sh'''
+                                docker rmi -f xangdau.auth.api:latest || true
+                                docker build -t xangdau.auth.api:latest -f Auth_Dockerfile .
+                            '''
+                        }
+                    break
+                    case 'router_api':
+                        dir('Be') {
+                            sh'''
+                                docker rmi -f xangdau.router.api:latest || true
+                                docker build -t xangdau.router.api:latest -f Router_Dockerfile .
+                            '''
+                        }
+                    break
+                    case 'puplic_api':
+                        dir('Be') {
+                            sh'''
+                                docker rmi -f xangdau.puplic.api:latest || true
+                                docker build -t xangdau.puplic.api:latest -f Public_Dockerfile .
+                            '''
+                        }
+                    break
                 }
                 
             }
